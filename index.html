@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الجداول المتقدم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root{--bg:#eef0f4;--surface:#fff;--border:#c8cdd5;--border-light:#e2e5ea;--fg:#1e293b;--muted:#64748b;--accent:#059669;--accent-dim:rgba(5,150,105,.07);--accent-glow:rgba(5,150,105,.12);--gold:#d97706;--danger:#dc2626;--header-bg:#f6f8fa;--hover-row:rgba(5,150,105,.04);--stripe:rgba(0,0,0,.015)}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden}
+        .login-screen{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity .4s,visibility .4s}
+        .login-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+        .login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 36px;width:92%;max-width:420px;box-shadow:0 12px 48px rgba(0,0,0,.07);text-align:center}
+        .login-logo{width:52px;height:52px;background:linear-gradient(135deg,var(--accent),#047857);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto;box-shadow:0 4px 16px var(--accent-glow)}
+        .login-logo i{color:#fff;font-size:22px}
+        .login-card h1{font-size:26px;font-weight:900;margin:18px 0 6px}
+        .login-sub{color:var(--muted);font-size:14px;margin-bottom:28px;line-height:1.6}
+        .login-input{width:100%;padding:15px 18px;border:2px solid var(--border);border-radius:12px;font-size:20px;font-family:'Tajawal',sans-serif;font-weight:900;text-align:center;letter-spacing:3px;outline:none;transition:border-color .2s;background:var(--header-bg)}
+        .login-input:focus{border-color:var(--accent)}
+        .login-input::placeholder{letter-spacing:0;font-size:15px;font-weight:400;color:#aaa}
+        .login-btn{width:100%;padding:15px;border:none;border-radius:12px;background:linear-gradient(135deg,var(--accent),#047857);color:#fff;font-size:18px;font-weight:900;font-family:'Tajawal',sans-serif;cursor:pointer;margin-top:18px;transition:all .2s;box-shadow:0 4px 16px var(--accent-glow)}
+        .login-btn:hover{transform:translateY(-2px);box-shadow:0 6px 24px var(--accent-glow)}
+        .login-btn:active{transform:translateY(0)}
+        .login-error{color:var(--danger);font-size:13px;font-weight:700;margin-top:14px;min-height:22px}
+        .login-footer{margin-top:20px;font-size:11px;color:#bbb}
+        .top-nav{position:fixed;top:0;left:0;right:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:0 1px 6px rgba(0,0,0,.04)}
+        .nav-inner{max-width:1600px;margin:0 auto;padding:10px 20px}
+        .nav-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+        .logo-area{display:flex;align-items:center;gap:10px}
+        .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#047857);border-radius:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px var(--accent-glow)}
+        .logo-icon i{color:#fff;font-size:14px}
+        .logo-text{font-weight:900;font-size:18px}
+        .nav-right{display:flex;align-items:center;gap:12px}
+        .role-badge{padding:4px 12px;border-radius:7px;font-size:11px;font-weight:900;display:none;align-items:center;gap:5px}
+        .role-badge.sup{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(5,150,105,.2)}
+        .role-badge.wrk{background:rgba(217,119,6,.08);color:var(--gold);border:1px solid rgba(217,119,6,.2)}
+        .logout-btn{padding:6px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Tajawal',sans-serif;font-weight:700;font-size:11px;cursor:pointer;transition:all .2s;display:none;align-items:center;gap:5px}
+        .logout-btn:hover{border-color:var(--danger);color:var(--danger)}
+        .conn-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:4px;transition:background .3s}
+        .conn-dot.on{background:var(--accent);box-shadow:0 0 6px var(--accent-glow)}
+        .conn-dot.off{background:var(--danger);box-shadow:0 0 6px rgba(220,38,38,.2)}
+        .sync-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:7px;background:rgba(217,119,6,.12);color:var(--gold);border:1px solid rgba(217,119,6,.25);font-size:10px;font-weight:900;margin-right:6px;animation:syncPulse 2s ease-in-out infinite}
+        @keyframes syncPulse{0%,100%{opacity:1}50%{opacity:.6}}
+        .sync-badge i{font-size:10px}
+        .stats-bar{display:flex;align-items:center;gap:20px;font-size:13px;color:var(--muted)}
+        .stat-item{display:flex;align-items:center;gap:6px}
+        .stat-val{color:var(--accent);font-weight:700}
+        .tables-row{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+        .tbl-btn{width:52px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Tajawal',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+        .tbl-btn::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--accent);transform:scaleX(0);transition:transform .2s}
+        .tbl-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
+        .tbl-btn:hover::after{transform:scaleX(1)}
+        .tbl-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 12px var(--accent-glow);font-weight:900}
+        .tbl-btn.active::after{display:none}
+        .tbl-btn.has-data::before{content:'';position:absolute;top:4px;left:4px;width:5px;height:5px;background:var(--gold);border-radius:50%}
+        .tbl-btn.active.has-data::before{background:#fff}
+        .main-area{margin-top:120px;padding:20px;position:relative;z-index:1}
+        .table-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06);animation:cardIn .35s ease-out;position:relative}
+        @keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .card-header{background:var(--header-bg);padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+        .card-title{display:flex;align-items:center;gap:10px}
+        .card-title h2{font-weight:900;font-size:17px}
+        .live-dot{width:7px;height:7px;background:var(--accent);border-radius:50%;animation:livePulse 2s ease-in-out infinite}
+        @keyframes livePulse{0%,100%{opacity:1;box-shadow:0 0 0 0 var(--accent-glow)}50%{opacity:.4;box-shadow:0 0 8px 4px var(--accent-glow)}}
+        .saving-indicator{display:none;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:700}
+        .saving-indicator.visible{display:flex}
+        .saving-indicator i{color:var(--gold);font-size:13px}
+        .card-actions{display:flex;gap:8px}
+        .act-btn{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Tajawal',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+        .act-btn:hover{border-color:var(--fg);color:var(--fg)}
+        .act-btn.danger:hover{border-color:var(--danger);color:var(--danger);background:rgba(220,38,38,.04)}
+        .table-scroll{overflow:auto;max-height:calc(100vh - 200px)}
+        table{width:100%;border-collapse:collapse}
+        thead th{position:sticky;top:0;z-index:1;background:var(--header-bg);padding:10px 8px;font-weight:700;font-size:12px;color:var(--accent);border-bottom:2px solid var(--border);border-left:1px solid var(--border);text-align:center;white-space:nowrap;user-select:none}
+        thead th:first-child{border-right:1px solid var(--border);width:58px;min-width:58px;position:sticky;right:0;z-index:4;background:#f1f3f6;box-shadow:-3px 0 6px rgba(0,0,0,.05)}
+        tbody td:first-child{position:sticky;right:0;z-index:2;background:var(--surface);box-shadow:-3px 0 6px rgba(0,0,0,.04)}
+        tbody tr:nth-child(even) td:first-child{background:#fafbfc}
+        .th-inner{display:flex;align-items:center;justify-content:center;gap:4px}
+        .micro-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border-light);background:var(--surface);color:var(--muted);font-size:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+        .micro-btn.paste:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+        .micro-btn.copy:hover{border-color:#2563eb;color:#2563eb;background:rgba(37,99,235,.06)}
+        .micro-btn.clear:hover{border-color:var(--danger);color:var(--danger);background:rgba(220,38,38,.05)}
+        tbody tr{transition:background .1s}
+        tbody tr:hover{background:var(--hover-row)}
+        tbody tr:nth-child(even){background:var(--stripe)}
+        tbody tr:nth-child(even):hover{background:var(--hover-row)}
+        tbody td{padding:0;border-left:1px solid var(--border-light);border-bottom:1px solid var(--border-light);text-align:center;height:34px;font-size:13px}
+        tbody td:first-child{border-right:1px solid var(--border)}
+        .row-num{display:flex;align-items:center;justify-content:center;height:100%;font-weight:700;color:var(--muted);font-size:12px;background:rgba(0,0,0,.02);font-variant-numeric:tabular-nums}
+        td[contenteditable="true"]{outline:none;padding:0 6px;color:var(--fg);cursor:text;transition:all .15s;font-variant-numeric:tabular-nums;min-width:70px}
+        td[contenteditable="true"]:focus{background:var(--accent-dim);box-shadow:inset 0 0 0 1.5px var(--accent);z-index:1;position:relative}
+        td[contenteditable="true"].cell-error{background:rgba(220,38,38,.06);box-shadow:inset 0 0 0 1.5px var(--danger)}
+        .table-loader{position:absolute;inset:0;top:52px;background:rgba(255,255,255,.85);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:10;border-radius:0 0 14px 14px}
+        .table-loader.visible{display:flex}
+        .loader-content{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--muted);font-weight:700;font-size:14px}
+        .loader-content i{font-size:26px;color:var(--accent)}
+        .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+        .empty-state i{font-size:48px;opacity:.3;display:block;margin-bottom:16px}
+        .empty-state p{font-weight:700;font-size:15px}
+        .overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+        .overlay.visible{opacity:1;pointer-events:all}
+        .dialog{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:92%;max-width:480px;transform:translateY(12px) scale(.97);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 16px 48px rgba(0,0,0,.12)}
+        .overlay.visible .dialog{transform:translateY(0) scale(1)}
+        .dialog h3{font-weight:900;font-size:17px;margin-bottom:4px}
+        .dialog p{color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.6}
+        .dialog textarea{width:100%;height:180px;background:var(--header-bg);border:1px solid var(--border);border-radius:9px;padding:10px;color:var(--fg);font-family:'Tajawal',sans-serif;font-size:13px;resize:vertical;outline:none;transition:border-color .2s;line-height:1.8}
+        .dialog textarea:focus{border-color:var(--accent)}
+        .dialog-btns{display:flex;gap:10px;margin-top:14px}
+        .d-btn{padding:9px 22px;border-radius:9px;border:none;font-family:'Tajawal',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s}
+        .d-btn.primary{background:var(--accent);color:#fff}
+        .d-btn.primary:hover{box-shadow:0 3px 12px var(--accent-glow);transform:translateY(-1px)}
+        .d-btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+        .d-btn.ghost:hover{border-color:var(--fg);color:var(--fg)}
+        .d-btn.red{background:var(--danger);color:#fff}
+        .d-btn.red:hover{box-shadow:0 3px 12px rgba(220,38,38,.2);transform:translateY(-1px)}
+        .d-btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+        .super-dialog{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:96%;max-width:920px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.15);transform:translateY(12px) scale(.97);transition:transform .25s cubic-bezier(.4,0,.2,1)}
+        .overlay.visible .super-dialog{transform:translateY(0) scale(1)}
+        .super-header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+        .super-header h2{font-weight:900;font-size:19px;display:flex;align-items:center;gap:8px}
+        .super-header h2 i{color:var(--accent)}
+        .super-close{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .super-close:hover{border-color:var(--danger);color:var(--danger)}
+        .super-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+        .super-tab{flex:1;padding:12px;text-align:center;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;border:none;background:none;font-family:'Tajawal',sans-serif;transition:all .2s;border-bottom:2px solid transparent}
+        .super-tab:hover{color:var(--fg)}
+        .super-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-dim)}
+        .super-body{padding:24px;overflow-y:auto;flex:1}
+        .super-tab-content{display:none}
+        .super-tab-content.active{display:block}
+        .no-workers{text-align:center;padding:32px;color:var(--muted);font-size:14px;font-weight:700}
+        .no-workers i{font-size:36px;display:block;margin-bottom:10px;opacity:.3}
+        .worker-card{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;transition:border-color .2s}
+        .worker-card:hover{border-color:var(--accent)}
+        .worker-card-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--header-bg)}
+        .worker-code-area{display:flex;align-items:center;gap:10px}
+        .code-badge{background:var(--accent);color:#fff;padding:3px 12px;border-radius:7px;font-size:13px;font-weight:900;letter-spacing:1.5px}
+        .worker-tables-count{font-size:12px;color:var(--muted);font-weight:700}
+        .worker-card-actions{display:flex;align-items:center;gap:6px}
+        .wk-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+        .wk-btn.toggle:hover{border-color:var(--accent);color:var(--accent)}
+        .wk-btn.toggle.open{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .wk-btn.del:hover{border-color:var(--danger);color:var(--danger);background:rgba(220,38,38,.05)}
+        .wk-btn.del.confirming{background:var(--danger);color:#fff;border-color:var(--danger);font-size:9px}
+        .worker-details{padding:14px 16px;border-top:1px solid var(--border-light);display:none}
+        .worker-details.visible{display:block}
+        .perm-row{margin-bottom:6px;display:flex;align-items:center;gap:8px;font-size:13px}
+        .perm-tbl{font-weight:900;color:var(--accent);min-width:80px}
+        .perm-cols{display:flex;flex-wrap:wrap;gap:4px}
+        .perm-tag{background:var(--header-bg);border:1px solid var(--border-light);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;color:var(--muted)}
+        .form-group{margin-bottom:18px}
+        .form-label{font-weight:700;font-size:13px;color:var(--muted);margin-bottom:8px;display:block}
+        .form-input{width:100%;padding:11px 14px;border:2px solid var(--border);border-radius:9px;font-size:16px;font-family:'Tajawal',sans-serif;font-weight:700;outline:none;transition:border-color .2s;background:var(--surface);letter-spacing:1.5px;text-align:center}
+        .form-input:focus{border-color:var(--accent)}
+        .form-error{color:var(--danger);font-size:12px;font-weight:700;margin-top:6px;display:none}
+        .form-error.show{display:block}
+        .tbl-select-grid{display:flex;flex-wrap:wrap;gap:6px}
+        .tbl-sel-btn{width:46px;height:32px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Tajawal',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all .15s}
+        .tbl-sel-btn:hover{border-color:var(--accent);color:var(--accent)}
+        .tbl-sel-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .col-select-box{margin-top:10px;padding:14px;background:var(--header-bg);border-radius:10px;border:1px solid var(--border-light)}
+        .col-select-title{font-weight:900;font-size:13px;color:var(--accent);margin-bottom:8px}
+        .col-sel-grid{display:flex;flex-wrap:wrap;gap:5px}
+        .col-sel-btn{padding:5px 12px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-family:'Tajawal',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all .15s}
+        .col-sel-btn:hover{border-color:var(--accent);color:var(--accent)}
+        .col-sel-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .add-wkr-btn{padding:12px 32px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--accent),#047857);color:#fff;font-family:'Tajawal',sans-serif;font-weight:900;font-size:15px;cursor:pointer;transition:all .2s;margin-top:10px;box-shadow:0 4px 12px var(--accent-glow)}
+        .add-wkr-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px var(--accent-glow)}
+        .add-wkr-btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+        .snack{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);color:var(--fg);padding:11px 22px;border-radius:11px;font-weight:700;font-size:13px;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.1);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;align-items:center;gap:8px;white-space:nowrap}
+        .snack.up{transform:translateX(-50%) translateY(0)}
+        .snack.err{border-color:var(--danger)}
+        ::-webkit-scrollbar{width:7px;height:7px}
+        ::-webkit-scrollbar-track{background:var(--bg)}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+        ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+        @media(max-width:768px){.nav-top{flex-direction:column;gap:6px;align-items:flex-start}.stats-bar{font-size:11px;gap:10px}.tbl-btn{width:42px;height:30px;font-size:12px}.main-area{padding:12px;margin-top:130px}.card-header{padding:10px 14px}.super-dialog{width:100%;max-height:95vh;border-radius:0}.nav-right{flex-wrap:wrap;gap:8px}}
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div class="login-screen" id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo"><i class="fas fa-layer-group"></i></div>
+        <h1>نظام الجداول</h1>
+        <p class="login-sub">أدخل كود الدخول للمتابعة</p>
+        <input type="text" class="login-input" id="loginInput" placeholder="أدخل الكود هنا" autocomplete="off" spellcheck="false">
+        <button class="login-btn" onclick="handleLogin()"><i class="fas fa-arrow-right-to-bracket"></i>&nbsp; دخول</button>
+        <div class="login-error" id="loginError"></div>
+        <div class="login-footer">جميع البيانات محفوظة ومزامنة تلقائياً</div>
+    </div>
+</div>
+
+<!-- شريط التنقل -->
+<nav class="top-nav" id="topNav" style="display:none">
+    <div class="nav-inner">
+        <div class="nav-top">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fas fa-layer-group"></i></div>
+                <span class="logo-text">نظام الجداول</span>
+                <span class="conn-dot off" id="connDot"></span>
+                <span class="sync-badge" id="syncBadge" style="display:none"><i class="fas fa-cloud-arrow-up"></i><span id="syncBadgeCount">0</span></span>
+            </div>
+            <div class="nav-right">
+                <span class="role-badge sup" id="roleSup"><i class="fas fa-shield-halved"></i>مشرف</span>
+                <span class="role-badge wrk" id="roleWrk"><i class="fas fa-user"></i>عامل</span>
+                <button class="logout-btn" id="logoutBtn" onclick="logout()"><i class="fas fa-right-from-bracket"></i>خروج</button>
+                <div class="stats-bar">
+                    <div class="stat-item"><i class="fas fa-table" style="font-size:11px"></i><span>الجدول</span><span class="stat-val" id="statTable">1</span></div>
+                    <div class="stat-item"><i class="fas fa-pen" style="font-size:11px"></i><span>مملوء</span><span class="stat-val" id="statFilled">0</span></div>
+                    <div class="stat-item"><i class="fas fa-database" style="font-size:11px"></i><span>إجمالي</span><span class="stat-val" id="statTotal">0</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="tables-row" id="tablesRow" role="tablist"></div>
+    </div>
+</nav>
+
+<!-- منطقة الجدول -->
+<main class="main-area" id="mainArea" style="display:none">
+    <div class="table-card" id="tableCard">
+        <div class="card-header">
+            <div class="card-title">
+                <h2 id="cardTitle">الجدول رقم 1</h2>
+                <div class="live-dot"></div>
+                <div class="saving-indicator" id="savingInd"><i class="fas fa-cloud-arrow-up"></i><span>جاري الحفظ...</span></div>
+            </div>
+            <div class="card-actions">
+                <button class="act-btn" id="manageBtn" onclick="openSuperPanel()" style="display:none"><i class="fas fa-users-gear"></i>إدارة العمال</button>
+                <button class="act-btn" onclick="exportCSV()"><i class="fas fa-file-csv"></i>تصدير</button>
+                <button class="act-btn danger" onclick="openConfirmClear()"><i class="fas fa-trash-alt"></i>مسح</button>
+            </div>
+        </div>
+        <div class="table-scroll" id="tableScroll">
+            <table id="dataTable" role="grid"><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table>
+        </div>
+        <div class="table-loader" id="tableLoader"><div class="loader-content"><i class="fas fa-spinner fa-spin"></i><span>جاري التحميل...</span></div></div>
+        <div class="empty-state" id="emptyState" style="display:none"><i class="fas fa-lock"></i><p>لا توجد جداول مخصصة لك</p></div>
+    </div>
+</main>
+
+<!-- لوحة إدارة العمال -->
+<div class="overlay" id="superOverlay">
+    <div class="super-dialog">
+        <div class="super-header">
+            <h2><i class="fas fa-users-gear"></i>إدارة العمال</h2>
+            <button class="super-close" onclick="closeSuperPanel()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="super-tabs">
+            <button class="super-tab active" onclick="switchSuperTab('list',this)">العمال المسجلين</button>
+            <button class="super-tab" onclick="switchSuperTab('add',this)">إضافة عامل جديد</button>
+        </div>
+        <div class="super-body">
+            <div class="super-tab-content active" id="tabList"></div>
+            <div class="super-tab-content" id="tabAdd"></div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة اللصق -->
+<div class="overlay" id="pasteOverlay">
+    <div class="dialog">
+        <h3 id="pasteTitle">لصق البيانات</h3>
+        <p id="pasteDesc">ألصق القيم، كل قيمة في سطر منفصل</p>
+        <textarea id="pasteInput" placeholder="الصق البيانات هنا..."></textarea>
+        <div class="dialog-btns">
+            <button class="d-btn primary" id="pasteApplyBtn" onclick="applyPaste()">تطبيق</button>
+            <button class="d-btn ghost" onclick="closeOverlay('pasteOverlay')">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة تأكيد المسح -->
+<div class="overlay" id="clearOverlay">
+    <div class="dialog">
+        <h3>تأكيد مسح الجدول</h3>
+        <p>سيتم حذف جميع بياناتك في هذا الجدول من قاعدة البيانات.</p>
+        <div class="dialog-btns">
+            <button class="d-btn red" id="clearConfirmBtn" onclick="confirmClear()">نعم، امسح</button>
+            <button class="d-btn ghost" onclick="closeOverlay('clearOverlay')">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div class="snack" id="snack"><i id="snackIcon" class="fas fa-check-circle" style="color:var(--accent)"></i><span id="snackText"></span></div>
+
+<script>
+/* ===== Firebase ===== */
+const firebaseConfig={apiKey:"AIzaSyDDJGZYUXa5EttWeCNVIoryQnHwqRAosEQ",authDomain:"tajrba-8fe32.firebaseapp.com",databaseURL:"https://tajrba-8fe32-default-rtdb.firebaseio.com",projectId:"tajrba-8fe32",storageBucket:"tajrba-8fe32.appspot.com",messagingSenderId:"1025824662639",appId:"1:1025824662639:android:533899fa6acf4c1e7d999a"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+
+/* ===== ثوابت ===== */
+const SUPER_CODE='274407M';
+const TABLES_COUNT=20;
+const ROWS_COUNT=100;
+const COLS=[{key:'num',label:'الترتيب',editable:false,numeric:false},{key:'name',label:'الأسماء',editable:true,numeric:false},{key:'AR',label:'AR',editable:true,numeric:true},{key:'IR',label:'IR',editable:true,numeric:true},{key:'HG',label:'HG',editable:true,numeric:true},{key:'IC',label:'IC',editable:true,numeric:true},{key:'SN',label:'SN',editable:true,numeric:true},{key:'MA',label:'MA',editable:true,numeric:true},{key:'PC',label:'PC',editable:true,numeric:true},{key:'Ang',label:'Ang',editable:true,numeric:true},{key:'IT',label:'IT',editable:true,numeric:true}];
+const EDITABLE_COLS=COLS.filter(c=>c.editable).map(c=>c.key);
+
+/* ===== حالة ===== */
+let currentUser=null;
+let activeTable=1;
+let pasteCol=null;
+const cache={};
+const cacheTimestamps={}; // طوابع زمنية آخر تعديل لكل خلية (table -> row -> col -> timestamp)
+let workersCache=null;
+let totalFilled=0;
+let workerTotalFilled=0;
+let currentTableFilled=0;
+let isConnected=false;
+let isSyncing=false; // هل تتم مزامنة حالياً؟
+let pendingSync=false; // هل هناك تغييرات معلقة؟
+let newWorkerSel={};
+let deleteConfirming=null;
+let deleteTimer=null;
+let realtimeListeners={}; // مستمعو التحديثات اللحظية لكل جدول
+
+/* ===== ذاكرة التخزين المحلي (Offline Storage) ===== */
+const LS_PREFIX='tg_'; // بادئة مفاتيح localStorage
+const LS_DATA=LS_PREFIX+'data_';     // بيانات الجدول: tg_data_<n>
+const LS_TS=LS_PREFIX+'ts_';           // طوابع زمنية لكل خلية: tg_ts_<n>
+const LS_PENDING=LS_PREFIX+'pending'; // قائمة الجداول التي بها تغييرات معلقة للمزامنة
+const LS_USER=LS_PREFIX+'user';       // بيانات آخر مستخدم للتعرف على نوع الحساب
+
+function lsSaveData(n, data){
+    try{localStorage.setItem(LS_DATA+n, JSON.stringify(data));}catch(e){console.warn('فشل حفظ محلي:',e);}
+}
+function lsLoadData(n){
+    try{const s=localStorage.getItem(LS_DATA+n);return s?JSON.parse(s):null;}catch(e){return null;}
+}
+function lsSaveTimestamps(n, ts){
+    try{localStorage.setItem(LS_TS+n, JSON.stringify(ts));}catch(e){}
+}
+function lsLoadTimestamps(n){
+    try{const s=localStorage.getItem(LS_TS+n);return s?JSON.parse(s):{};}catch(e){return {};}
+}
+function lsGetPending(){
+    try{const s=localStorage.getItem(LS_PENDING);return s?JSON.parse(s):[];}catch(e){return [];}
+}
+function lsSetPending(arr){
+    try{localStorage.setItem(LS_PENDING, JSON.stringify(arr));}catch(e){}
+}
+function lsAddPending(n){
+    const arr=lsGetPending();
+    if(!arr.includes(n)){arr.push(n);lsSetPending(arr);updatePendingIndicator();}
+}
+function lsRemovePending(n){
+    const arr=lsGetPending().filter(x=>x!==n);lsSetPending(arr);updatePendingIndicator();
+}
+function lsSaveUser(user){
+    try{localStorage.setItem(LS_USER, JSON.stringify(user));}catch(e){}
+}
+function lsLoadUser(){
+    try{const s=localStorage.getItem(LS_USER);return s?JSON.parse(s):null;}catch(e){return null;}
+}
+function lsClearAll(){
+    try{
+        Object.keys(localStorage).filter(k=>k.startsWith(LS_PREFIX)).forEach(k=>localStorage.removeItem(k));
+    }catch(e){}
+}
+
+/* ===== صلاحيات ===== */
+function getAccessibleTables(){
+    if(!currentUser)return[];
+    if(currentUser.type==='supervisor')return Array.from({length:TABLES_COUNT},(_,i)=>i+1);
+    return Object.keys(currentUser.permissions.tables||{}).map(Number).sort((a,b)=>a-b);
+}
+function getEditableColumns(tn){
+    if(!currentUser)return[];
+    if(currentUser.type==='supervisor')return EDITABLE_COLS;
+    const t=(currentUser.permissions.tables||{})[tn];
+    return t?(t.columns||[]):[];
+}
+function getVisibleCols(tn){
+    const ec=getEditableColumns(tn);
+    return COLS.filter(c=>c.key==='num'||ec.includes(c.key));
+}
+
+/* ===== بيانات ===== */
+function emptyData(){const d={};for(let r=1;r<=ROWS_COUNT;r++){d[r]={};EDITABLE_COLS.forEach(c=>{d[r][c]='';});}return d;}
+function countFilledForUser(data,tn){if(!data)return 0;const cols=getEditableColumns(tn);let n=0;for(let r=1;r<=ROWS_COUNT;r++){if(!data[r])continue;cols.forEach(c=>{if(data[r][c]&&data[r][c].trim()!=='')n++;});}return n;}
+function countAllFilled(data){if(!data)return 0;let n=0;for(let r=1;r<=ROWS_COUNT;r++){if(!data[r])continue;EDITABLE_COLS.forEach(c=>{if(data[r][c]&&data[r][c].trim()!=='')n++;});}return n;}
+function hasTableDataForUser(tn){const d=cache[tn];if(!d)return false;const cols=getEditableColumns(tn);for(let r=1;r<=ROWS_COUNT;r++){if(!d[r])continue;for(const c of cols){if(d[r][c]&&d[r][c].trim()!=='')return true;}}return false;}
+
+async function getTableData(n){
+    if(cache[n])return cache[n];
+    
+    // 1) اقرأ من localStorage أولاً (توجد بيانات محلية دائماً)
+    const localData=lsLoadData(n);
+    const localTs=lsLoadTimestamps(n);
+    
+    // 2) حاول قراءة Firebase (قد تفشل عند انقطاع الإنترنت)
+    let firebaseData=null;
+    if(isConnected){
+        try{
+            const snap=await db.ref('tables/'+n).once('value');
+            firebaseData=snap.val();
+        }catch(e){
+            console.warn('قراءة Firebase فشلت للجدول '+n+', استخدام البيانات المحلية',e);
+        }
+    }
+    
+    // 3) ادمج البيانات: استخدم الطوابع الزمنية لتحديد آخر تغيير
+    let merged=emptyData();
+    
+    if(firebaseData){
+        // ادمج بيانات Firebase أولاً
+        for(const r in firebaseData){
+            const rn=parseInt(r);
+            if(rn>=1&&rn<=ROWS_COUNT&&merged[rn]){
+                for(const c in firebaseData[r]){
+                    if(merged[rn][c]!==undefined)merged[rn][c]=firebaseData[r][c]||'';
+                }
+            }
+        }
+    }
+    
+    // 4) إذا توجد بيانات محلية بطوابع زمنية، اكتبها فوق firebase (لأنها آخر تعديل)
+    if(localData){
+        for(let r=1;r<=ROWS_COUNT;r++){
+            if(!localData[r])continue;
+            for(const c of EDITABLE_COLS){
+                const localVal=localData[r][c];
+                const localTime=localTs&&localTs[r]&&localTs[r][c]?localTs[r][c]:0;
+                const fbVal=merged[r][c];
+                // إذا كانت القيمة المحلية موجودة وأحدث من firebase، استخدمها
+                if(localTime>0 && localVal!==undefined){
+                    // قيمة محلية معدّلة، اكتبها فوق firebase
+                    merged[r][c]=localVal;
+                }
+                // وإلا، احتفظ بقيمة firebase (إذا توجد)
+            }
+        }
+    }
+    
+    cache[n]=merged;
+    
+    // 5) حدّث localStorage بالبيانات المدموجة الجديدة (نسخة محلية محدّثة)
+    lsSaveData(n, merged);
+    
+    return cache[n];
+}
+
+async function saveToFirebase(n){
+    const data=cache[n];if(!data)return;
+    const cols=getEditableColumns(n);
+    const now=Date.now();
+    
+    // دائماً احفظ نسخة محلية + طوابع زمنية (للمزامنة لاحقاً)
+    lsSaveData(n, data);
+    
+    // إذا لا يوجد اتصال، سجّل الجدول كـ"معلق" وانتظر عودة الإنترنت
+    if(!isConnected){
+        lsAddPending(n);
+        pendingSync=true;
+        return;
+    }
+    
+    try{
+        showSavingIndicator(true);
+        const upd={};
+        for(let r=1;r<=ROWS_COUNT;r++){if(!data[r])continue;cols.forEach(c=>{upd[r+'/'+c]=data[r][c];});}
+        await db.ref('tables/'+n).update(upd);
+        setConnectionState(true);
+        // نجح الحفظ: أزل من قائمة المعلّق
+        lsRemovePending(n);
+    }
+    catch(e){
+        console.error('حفظ:',n,e);
+        setConnectionState(false);
+        // فشل الحفظ: سجّل الجدول معلّق
+        lsAddPending(n);
+        pendingSync=true;
+        showSnack('لا يوجد اتصال - تم الحفظ محلياً وسيتم رفعه تلقائياً عند عودة الإنترنت');
+    }
+    finally{showSavingIndicator(false);}
+}
+
+/* ===== مزامنة الجداول المعلقة عند عودة الإنترنت ===== */
+async function syncPendingTables(){
+    if(isSyncing||!isConnected)return;
+    const pending=lsGetPending();
+    if(!pending.length)return;
+    
+    isSyncing=true;
+    showSavingIndicator(true);
+    let successCount=0;
+    
+    for(const n of pending){
+        const data=cache[n];
+        if(!data){
+            // حمّل من localStorage
+            const ld=lsLoadData(n);
+            if(!ld){lsRemovePending(n);continue;}
+            cache[n]=ld;
+        }
+        try{
+            const cols=getEditableColumns(n);
+            const upd={};
+            for(let r=1;r<=ROWS_COUNT;r++){if(!cache[n][r])continue;cols.forEach(c=>{upd[r+'/'+c]=cache[n][r][c];});}
+            await db.ref('tables/'+n).update(upd);
+            lsRemovePending(n);
+            successCount++;
+        }catch(e){
+            console.warn('فشلت مزامنة الجدول '+n,e);
+        }
+    }
+    
+    isSyncing=false;
+    showSavingIndicator(false);
+    pendingSync=lsGetPending().length>0;
+    
+    if(successCount>0){
+        showSnack('تمت مزامنة '+successCount+' جدول مع Firebase');
+        updateMetaInFirebase();
+        updatePendingIndicator();
+    }
+}
+
+function updatePendingIndicator(){
+    const pending=lsGetPending();
+    const dot=document.getElementById('connDot');
+    const badge=document.getElementById('syncBadge');
+    const badgeCount=document.getElementById('syncBadgeCount');
+    if(pending.length>0){
+        dot.title='توجد '+pending.length+' جداول معلقة للمزامنة';
+        if(badge){
+            badge.style.display='inline-flex';
+            badgeCount.textContent=pending.length;
+            badge.title=pending.length+' جداول بانتظار المزامنة عند عودة الإنترنت';
+        }
+    }else{
+        dot.title='';
+        if(badge)badge.style.display='none';
+    }
+}
+
+function updateMetaInFirebase(){
+    if(!currentUser||currentUser.type!=='supervisor')return;
+    let t=0;for(let n=1;n<=TABLES_COUNT;n++){if(cache[n])t+=countAllFilled(cache[n]);}
+    totalFilled=t;db.ref('meta/total').set(t);
+}
+
+async function loadMeta(){try{const s=await db.ref('meta').once('value');const m=s.val()||{};totalFilled=m.total||0;}catch(e){totalFilled=0;}}
+async function loadWorkersData(){try{const s=await db.ref('supervisor/workers').once('value');workersCache=s.val()||{};}catch(e){workersCache={};}}
+
+function setConnectionState(c){
+    const wasOffline=!isConnected;
+    isConnected=c;
+    document.getElementById('connDot').className='conn-dot '+(c?'on':'off');
+    // عند عودة الإنترنت، ابدأ المزامنة التلقائية للجداول المعلقة
+    if(c && wasOffline){
+        showSnack('عاد الاتصال - جاري مزامنة التغييرات المعلقة');
+        // انتظر قليلاً لضمان استقرار الاتصال
+        setTimeout(()=>{syncPendingTables();setupRealtimeListeners();},800);
+    }
+    updatePendingIndicator();
+}
+
+// مراقبة حالة الاتصال من Firebase
+db.ref('.info/connected').on('value',s=>setConnectionState(s.val()===true));
+
+// أيضاً استخدم حدث المتصفح لتغيّر الشبكة
+window.addEventListener('online',()=>{setConnectionState(true);});
+window.addEventListener('offline',()=>{setConnectionState(false);showSnack('انقطع الإنترنت - سيتم الحفظ محلياً');});
+
+function showSavingIndicator(s){document.getElementById('savingInd').classList.toggle('visible',s);}
+let saveTimeout=null;
+function scheduleSave(){
+    clearTimeout(saveTimeout);
+    saveTimeout=setTimeout(async()=>{
+        await saveToFirebase(activeTable);
+        updateMetaInFirebase();
+    },1200);
+}
+
+/* ===== مستمعو التحديثات اللحظية من Firebase ===== */
+function setupRealtimeListeners(){
+    if(!currentUser)return;
+    const tables=getAccessibleTables();
+    tables.forEach(n=>{
+        // تجنب إنشاء مستمعين مكررين
+        if(realtimeListeners[n])return;
+        try{
+            const handler=snap=>{
+                // تجاهل التحديثات أثناء المزامنة (لتفادي الحلقات)
+                if(isSyncing)return;
+                const fd=snap.val();
+                if(!fd)return;
+                
+                // إذا كان الجدول النشط، ادمج التحديثات في cache بدون مسح تعديلات المستخدم
+                const localTs=lsLoadTimestamps(n);
+                const newData=emptyData();
+                for(const r in fd){
+                    const rn=parseInt(r);
+                    if(rn>=1&&rn<=ROWS_COUNT&&newData[rn]){
+                        for(const c in fd[r]){
+                            if(newData[rn][c]!==undefined)newData[rn][c]=fd[r][c]||'';
+                        }
+                    }
+                }
+                
+                // ادمج مع cache المحلي: احتفظ بالقيم المعدّلة محلياً (بناءً على الطابع الزمني)
+                if(cache[n]){
+                    for(let r=1;r<=ROWS_COUNT;r++){
+                        if(!cache[n][r])continue;
+                        for(const c of EDITABLE_COLS){
+                            const localTime=localTs&&localTs[r]&&localTs[r][c]?localTs[r][c]:0;
+                            // إذا القيمة المحلية معدّلة (لها طابع زمني صغير نسبياً < 5 ثواني) احتفظ بها
+                            if(localTime>0 && Date.now()-localTime<5000){
+                                newData[r][c]=cache[n][r][c];
+                            }
+                        }
+                    }
+                }
+                cache[n]=newData;
+                lsSaveData(n, newData);
+                
+                // إذا كان هذا الجدول هو النشط، أعد الرسم
+                if(n===activeTable){
+                    const currentlyFocused=document.activeElement;
+                    const focusedR=currentlyFocused&&currentlyFocused.getAttribute?currentlyFocused.getAttribute('data-r'):null;
+                    const focusedC=currentlyFocused&&currentlyFocused.getAttribute?currentlyFocused.getAttribute('data-c'):null;
+                    const focusedVal=currentlyFocused?currentlyFocused.textContent:null;
+                    
+                    renderTableWithData(newData);
+                    
+                    // استعد التركيز والقيمة إن كان المستخدم يكتب
+                    if(focusedR&&focusedC){
+                        const newCell=document.querySelector('#tBody td[data-r="'+focusedR+'"][data-c="'+focusedC+'"]');
+                        if(newCell){
+                            newCell.focus();
+                            // ضع المؤشر في النهاية
+                            const range=document.createRange();
+                            range.selectNodeContents(newCell);
+                            range.collapse(false);
+                            const sel=window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }
+                    currentTableFilled=countFilledForUser(newData,activeTable);
+                    updateStatsLocal();
+                    refreshButtonStates();
+                }
+            };
+            db.ref('tables/'+n).on('value',handler);
+            realtimeListeners[n]=handler;
+        }catch(e){console.warn('فشل إنشاء مستمع لحظي للجدول '+n,e);}
+    });
+}
+
+function teardownRealtimeListeners(){
+    Object.keys(realtimeListeners).forEach(n=>{
+        try{db.ref('tables/'+n).off('value',realtimeListeners[n]);}catch{}
+    });
+    realtimeListeners={};
+}
+
+/* تسجيل طابع زمني لخلية عند تعديلها */
+function recordCellTimestamp(n,r,c){
+    if(!cacheTimestamps[n])cacheTimestamps[n]={};
+    if(!cacheTimestamps[n][r])cacheTimestamps[n][r]={};
+    cacheTimestamps[n][r][c]=Date.now();
+    // احفظ في localStorage أيضاً
+    const ts=lsLoadTimestamps(n);
+    if(!ts[r])ts[r]={};
+    ts[r][c]=Date.now();
+    lsSaveTimestamps(n,ts);
+}
+
+/* ===== تسجيل الدخول ===== */
+async function handleLogin(){
+    const inp=document.getElementById('loginInput');
+    const err=document.getElementById('loginError');
+    const code=inp.value.trim();
+    err.textContent='';inp.style.borderColor='';
+    if(!code){err.textContent='يرجى إدخال الكود';inp.style.borderColor='var(--danger)';return;}
+    if(code===SUPER_CODE){
+        currentUser={type:'supervisor'};
+        lsSaveUser({type:'supervisor'});
+        await loadMeta();
+        activeTable=1;
+        // تحميل بيانات جميع الجداول للمشرف قبل الدخول لمنع فقدان بيانات الفصل 1 (خانات المواد)
+        // بدون هذا التحميل، cache[1] يكون فارغاً وعند تعديل أي خلية يتم مسح باقي الخانات
+        await Promise.all(Array.from({length:TABLES_COUNT},(_,i)=>getTableData(i+1)));
+        setupRealtimeListeners();
+        // إذا توجد جداول معلقة من جلسة سابقة، ابدأ المزامنة
+        if(isConnected && lsGetPending().length>0){
+            setTimeout(syncPendingTables,1000);
+        }
+        enterApp();
+        return;
+    }
+    try{const snap=await db.ref('supervisor/workers/'+code).once('value');const perms=snap.val();
+    if(!perms||!perms.tables||Object.keys(perms.tables).length===0){err.textContent='كود غير صالح أو لا توجد صلاحيات';inp.style.borderColor='var(--danger)';return;}
+    currentUser={type:'worker',code:code,permissions:perms};
+    lsSaveUser({type:'worker',code:code,permissions:perms});
+    const tables=getAccessibleTables();activeTable=tables[0]||1;
+    await Promise.all(tables.map(t=>getTableData(t)));
+    setupRealtimeListeners();
+    if(isConnected && lsGetPending().length>0){
+        setTimeout(syncPendingTables,1000);
+    }
+    calcWorkerTotal();enterApp();}
+    catch(e){
+        // عند انقطاع الإنترنت أثناء الدخول، اسمح بالدخول من localStorage إن وجدت بيانات سابقة
+        const savedUser=lsLoadUser();
+        if(savedUser && savedUser.type==='worker' && savedUser.code===code){
+            currentUser={type:'worker',code:code,permissions:savedUser.permissions};
+            const tables=getAccessibleTables();
+            if(tables.length){
+                activeTable=tables[0]||1;
+                await Promise.all(tables.map(t=>getTableData(t)));
+                setupRealtimeListeners();
+                calcWorkerTotal();enterApp();
+                showSnack('تم الدخول في وضع عدم الاتصال - التغييرات ستُحفظ محلياً');
+                return;
+            }
+        }
+        err.textContent='فشل في الاتصال بقاعدة البيانات';inp.style.borderColor='var(--danger)';setConnectionState(false);
+    }
+}
+
+function enterApp(){
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('topNav').style.display='';
+    document.getElementById('mainArea').style.display='';
+    const isSup=currentUser.type==='supervisor';
+    document.getElementById('roleSup').style.display=isSup?'inline-flex':'none';
+    document.getElementById('roleWrk').style.display=isSup?'none':'inline-flex';
+    document.getElementById('manageBtn').style.display=isSup?'flex':'none';
+    document.getElementById('logoutBtn').style.display='flex';
+    const tables=getAccessibleTables();
+    if(tables.length===0){document.getElementById('tableCard').style.display='none';document.getElementById('emptyState').style.display='block';}
+    else{document.getElementById('tableCard').style.display='';document.getElementById('emptyState').style.display='none';
+    buildNavButtons();const data=cache[activeTable]||emptyData();currentTableFilled=countFilledForUser(data,activeTable);renderTableWithData(data);}
+    updateStatsLocal();
+    updatePendingIndicator();
+}
+
+function logout(){
+    syncCellsToCache();
+    if(cache[activeTable]){const cols=getEditableColumns(activeTable);const upd={};for(let r=1;r<=ROWS_COUNT;r++){if(!cache[activeTable][r])continue;cols.forEach(c=>{upd[r+'/'+c]=cache[activeTable][r][c];});}db.ref('tables/'+activeTable).update(upd);}
+    // إيقاف المستمعين اللحظيين
+    teardownRealtimeListeners();
+    currentUser=null;Object.keys(cache).forEach(k=>delete cache[k]);Object.keys(cacheTimestamps).forEach(k=>delete cacheTimestamps[k]);activeTable=1;totalFilled=0;workerTotalFilled=0;currentTableFilled=0;workersCache=null;newWorkerSel={};
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('topNav').style.display='none';document.getElementById('mainArea').style.display='none';
+    document.getElementById('loginInput').value='';document.getElementById('loginError').textContent='';document.getElementById('loginInput').style.borderColor='';
+    setTimeout(()=>document.getElementById('loginInput').focus(),300);
+}
+
+function calcWorkerTotal(){if(currentUser&&currentUser.type==='worker'){let t=0;getAccessibleTables().forEach(n=>{t+=countFilledForUser(cache[n],n);});workerTotalFilled=t;}}
+
+/* ===== أزرار التنقل ===== */
+function buildNavButtons(){
+    const row=document.getElementById('tablesRow');row.innerHTML='';
+    getAccessibleTables().forEach(n=>{const btn=document.createElement('button');btn.className='tbl-btn';
+    if(n===activeTable)btn.classList.add('active');if(hasTableDataForUser(n))btn.classList.add('has-data');
+    btn.textContent=n;btn.setAttribute('data-tbl',n);btn.setAttribute('role','tab');btn.setAttribute('aria-selected',n===activeTable?'true':'false');
+    btn.addEventListener('click',()=>switchTo(n));row.appendChild(btn);});
+}
+function refreshButtonStates(){document.querySelectorAll('.tbl-btn').forEach(btn=>{const n=parseInt(btn.getAttribute('data-tbl'));btn.classList.toggle('active',n===activeTable);btn.classList.toggle('has-data',hasTableDataForUser(n));btn.setAttribute('aria-selected',n===activeTable?'true':'false');});}
+
+/* ===== تبديل الجدول ===== */
+async function switchTo(n){
+    if(n===activeTable)return;clearTimeout(saveTimeout);syncCellsToCache();
+    try{await saveToFirebase(activeTable);updateMetaInFirebase();}catch{}
+    activeTable=n;document.getElementById('statTable').textContent=n;document.getElementById('cardTitle').textContent='الجدول رقم '+n;refreshButtonStates();
+    const loader=document.getElementById('tableLoader');loader.classList.add('visible');
+    try{const data=await getTableData(n);currentTableFilled=countFilledForUser(data,n);renderTableWithData(data);updateStatsLocal();}
+    catch(e){showSnack('فشل في تحميل الجدول',true);renderTableWithData(emptyData());currentTableFilled=0;updateStatsLocal();}
+    loader.classList.remove('visible');
+    const card=document.getElementById('tableCard');card.style.animation='none';void card.offsetWidth;card.style.animation='cardIn .35s ease-out';
+}
+
+/* ===== بناء الجدول ===== */
+function renderTableWithData(data){
+    const visCols=getVisibleCols(activeTable);const minW=Math.max(300,visCols.length*85);
+    document.getElementById('dataTable').style.minWidth=minW+'px';
+    const head=document.getElementById('tHead');head.innerHTML='';
+    visCols.forEach(col=>{const th=document.createElement('th');
+    if(col.editable){th.innerHTML='<div class="th-inner"><button class="micro-btn paste" data-col="'+col.key+'" title="لصق"><i class="fas fa-paste"></i></button><span>'+col.label+'</span><button class="micro-btn copy" data-copycol="'+col.key+'" title="نسخ"><i class="fas fa-copy"></i></button><button class="micro-btn clear" data-clearcol="'+col.key+'" title="مسح"><i class="fas fa-xmark"></i></button></div>';}
+    else th.textContent=col.label;head.appendChild(th);});
+    const body=document.getElementById('tBody');body.innerHTML='';const frag=document.createDocumentFragment();
+    for(let r=1;r<=ROWS_COUNT;r++){const tr=document.createElement('tr');
+    visCols.forEach(col=>{const td=document.createElement('td');
+    if(col.key==='num'){td.innerHTML='<div class="row-num">'+r+'</div>';}
+    else{td.contentEditable='true';td.setAttribute('data-r',r);td.setAttribute('data-c',col.key);td.setAttribute('data-num',col.numeric?'1':'0');td.setAttribute('role','gridcell');td.textContent=(data[r]&&data[r][col.key])||'';}
+    tr.appendChild(td);});frag.appendChild(tr);}body.appendChild(frag);document.getElementById('tableScroll').scrollTop=0;
+}
+
+function syncCellsToCache(){const cells=document.querySelectorAll('#tBody td[contenteditable]');if(!cells.length)return;const data=cache[activeTable]||emptyData();cells.forEach(td=>{const r=parseInt(td.getAttribute('data-r'));const c=td.getAttribute('data-c');if(!data[r])data[r]={};data[r][c]=td.textContent.trim();});cache[activeTable]=data;}
+
+/* ===== أحداث الجدول ===== */
+const tBody=document.getElementById('tBody');
+tBody.addEventListener('input',e=>{const td=e.target;if(!td.hasAttribute('data-r'))return;if(td.getAttribute('data-num')==='1'){const cl=td.textContent.replace(/[^\d.\-]/g,'');if(cl!==td.textContent){const sel=window.getSelection();const off=sel.focusOffset-(td.textContent.length-cl.length);td.textContent=cl;try{const range=document.createRange();range.setStart(td.firstChild||td,Math.max(0,off));range.collapse(true);sel.removeAllRanges();sel.addRange(range);}catch{}}}});
+tBody.addEventListener('focusout',e=>{const td=e.target;if(!td.hasAttribute('data-r'))return;td.classList.remove('cell-error');const r=parseInt(td.getAttribute('data-r'));const c=td.getAttribute('data-c');const val=td.textContent.trim();if(td.getAttribute('data-num')==='1'&&val!==''&&isNaN(parseFloat(val))){td.classList.add('cell-error');return;}const data=cache[activeTable]||emptyData();if(!data[r])data[r]={};// سجّل الطابع الزمني للخلية المعدّلة
+const prevVal=data[r][c];data[r][c]=val;if(prevVal!==val){recordCellTimestamp(activeTable,r,c);}cache[activeTable]=data;lsSaveData(activeTable,data);const nf=countFilledForUser(data,activeTable);if(nf!==currentTableFilled){if(currentUser.type==='worker')workerTotalFilled=workerTotalFilled-currentTableFilled+nf;currentTableFilled=nf;updateStatsLocal();refreshButtonStates();}scheduleSave();});
+tBody.addEventListener('paste',e=>{const td=e.target;if(!td.hasAttribute('data-r'))return;if(td.getAttribute('data-num')==='1'){e.preventDefault();const text=(e.clipboardData||window.clipboardData).getData('text');td.textContent=text.replace(/[^\d.\-]/g,'');}});
+tBody.addEventListener('keydown',e=>{const td=e.target;if(!td.hasAttribute('data-r'))return;const row=parseInt(td.getAttribute('data-r'));const colKey=td.getAttribute('data-c');const visCols=getVisibleCols(activeTable);const colIdx=visCols.findIndex(c=>c.key===colKey);let target=null;if(e.key==='Enter'){e.preventDefault();const nt=td.parentElement.nextElementSibling;if(nt)target=nt.children[colIdx];}else if(e.key==='Tab'){e.preventDefault();if(e.shiftKey){if(colIdx>1)target=td.parentElement.children[colIdx-1];else if(row>1){const pt=td.parentElement.previousElementSibling;if(pt)target=pt.children[visCols.length-1];}}else{if(colIdx<visCols.length-1)target=td.parentElement.children[colIdx+1];else if(row<ROWS_COUNT){const nt=td.parentElement.nextElementSibling;if(nt)target=nt.children[1];}}}else if(e.key==='ArrowDown'&&e.ctrlKey){e.preventDefault();const nt=td.parentElement.nextElementSibling;if(nt)target=nt.children[colIdx];}else if(e.key==='ArrowUp'&&e.ctrlKey){e.preventDefault();const pt=td.parentElement.previousElementSibling;if(pt)target=pt.children[colIdx];}if(target&&target.contentEditable==='true'){target.focus();const range=document.createRange();range.selectNodeContents(target);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);}});
+
+/* ===== أزرار الرأس ===== */
+document.getElementById('tHead').addEventListener('click',e=>{
+    const pb=e.target.closest('.micro-btn.paste');if(pb){pasteCol=pb.getAttribute('data-col');const ci=COLS.find(c=>c.key===pasteCol);document.getElementById('pasteTitle').textContent='لصق في عمود '+ci.label;document.getElementById('pasteInput').value='';openOverlay('pasteOverlay');setTimeout(()=>document.getElementById('pasteInput').focus(),300);return;}
+    const cb=e.target.closest('.micro-btn.copy');if(cb){copyColumn(cb.getAttribute('data-copycol'));return;}
+    const clb=e.target.closest('.micro-btn.clear');if(clb)clearSingleColumn(clb.getAttribute('data-clearcol'));
+});
+
+/* ===== لصق عمود ===== */
+async function applyPaste(){
+    const text=document.getElementById('pasteInput').value;let lines=text.split('\n').map(l=>l.trim());
+    if(!lines.length||(lines.length===1&&lines[0]==='')){showSnack('لا توجد بيانات',true);return;}
+    const btn=document.getElementById('pasteApplyBtn');btn.disabled=true;btn.textContent='جاري التطبيق...';
+    const colInfo=COLS.find(c=>c.key===pasteCol);const data=cache[activeTable]||emptyData();let applied=0;
+    for(let i=0;i<Math.min(lines.length,ROWS_COUNT);i++){const rn=i+1;if(!data[rn])data[rn]={};const lv=lines[i];if(colInfo.numeric){const cl=lv.replace(/[^\d.\-]/g,'');data[rn][pasteCol]=(cl!==''&&!isNaN(parseFloat(cl)))?cl:'';}else data[rn][pasteCol]=lv;recordCellTimestamp(activeTable,rn,pasteCol);applied++;}
+    cache[activeTable]=data;lsSaveData(activeTable,data);
+    try{
+        if(isConnected){
+            const upd={};for(let i=0;i<applied;i++){const rn=i+1;upd[rn+'/'+pasteCol]=data[rn][pasteCol];}
+            await db.ref('tables/'+activeTable).update(upd);
+            lsRemovePending(activeTable);
+        }else{
+            lsAddPending(activeTable);
+        }
+        const nf=countFilledForUser(data,activeTable);if(currentUser.type==='worker')workerTotalFilled=workerTotalFilled-currentTableFilled+nf;else updateMetaInFirebase();currentTableFilled=nf;updateStatsLocal();refreshButtonStates();renderTableWithData(data);closeOverlay('pasteOverlay');showSnack('تم تعبئة '+applied+' صف'+(!isConnected?' (محلياً)':''));
+    }
+    catch(e){
+        lsAddPending(activeTable);
+        showSnack('تم الحفظ محلياً - سيتم الرفع عند عودة الإنترنت');
+        // أعد الرسم على أي حال لعرض التغييرات
+        renderTableWithData(data);closeOverlay('pasteOverlay');
+    }btn.disabled=false;btn.textContent='تطبيق';
+}
+
+/* ===== نسخ عمود ===== */
+function copyColumn(colKey){const data=cache[activeTable]||emptyData();const ci=COLS.find(c=>c.key===colKey);const vals=[];for(let r=1;r<=ROWS_COUNT;r++){const v=(data[r]&&data[r][colKey])?data[r][colKey].trim():'';vals.push(ci.numeric?(v!==''?v:'0'):v);}const txt=vals.join('\n');navigator.clipboard.writeText(txt).then(()=>showSnack('تم النسخ')).catch(()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showSnack('تم النسخ');}catch{showSnack('فشل',true);}document.body.removeChild(ta);});}
+
+/* ===== مسح عمود ===== */
+async function clearSingleColumn(colKey){
+    const data=cache[activeTable]||emptyData();
+    const upd={};
+    for(let r=1;r<=ROWS_COUNT;r++){data[r][colKey]='';upd[r+'/'+colKey]='';recordCellTimestamp(activeTable,r,colKey);}
+    cache[activeTable]=data;lsSaveData(activeTable,data);
+    try{
+        if(isConnected){
+            await db.ref('tables/'+activeTable).update(upd);
+            lsRemovePending(activeTable);
+        }else{
+            lsAddPending(activeTable);
+        }
+        const nf=countFilledForUser(data,activeTable);
+        if(currentUser.type==='worker')workerTotalFilled=workerTotalFilled-currentTableFilled+nf;else updateMetaInFirebase();
+        currentTableFilled=nf;updateStatsLocal();refreshButtonStates();renderTableWithData(data);
+        showSnack('تم مسح العمود'+(!isConnected?' (محلياً)':''));
+    }catch(e){
+        lsAddPending(activeTable);
+        showSnack('تم الحفظ محلياً - سيتم الرفع عند عودة الإنترنت');
+        renderTableWithData(data);
+    }
+}
+
+/* ===== مسح جدول ===== */
+function openConfirmClear(){openOverlay('clearOverlay');}
+async function confirmClear(){
+    const btn=document.getElementById('clearConfirmBtn');btn.disabled=true;btn.textContent='جاري المسح...';
+    const cols=getEditableColumns(activeTable);const data=cache[activeTable]||emptyData();const upd={};
+    for(let r=1;r<=ROWS_COUNT;r++){cols.forEach(c=>{data[r][c]='';upd[r+'/'+c]='';recordCellTimestamp(activeTable,r,c);});}
+    cache[activeTable]=data;lsSaveData(activeTable,data);
+    try{
+        if(isConnected){
+            await db.ref('tables/'+activeTable).update(upd);
+            lsRemovePending(activeTable);
+        }else{
+            lsAddPending(activeTable);
+        }
+        if(currentUser.type==='worker')workerTotalFilled=workerTotalFilled-currentTableFilled;else updateMetaInFirebase();
+        currentTableFilled=0;updateStatsLocal();refreshButtonStates();renderTableWithData(data);closeOverlay('clearOverlay');
+        showSnack('تم مسح الجدول'+(!isConnected?' (محلياً)':''));
+    }catch(e){
+        lsAddPending(activeTable);
+        showSnack('تم الحفظ محلياً - سيتم الرفع عند عودة الإنترنت');
+        renderTableWithData(data);closeOverlay('clearOverlay');
+    }
+    btn.disabled=false;btn.textContent='نعم، امسح';
+}
+
+/* ===== تصدير ===== */
+function exportCSV(){const data=cache[activeTable]||emptyData();const vc=getVisibleCols(activeTable);let csv='\uFEFF'+vc.map(c=>c.label).join(',')+'\n';for(let r=1;r<=ROWS_COUNT;r++){const row=[];vc.forEach(c=>{if(c.key==='num')row.push(r);else{const v=(data[r]&&data[r][c.key])||'';row.push('"'+v.replace(/"/g,'""')+'"');}});csv+=row.join(',')+'\n';}const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='table_'+activeTable+'.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showSnack('تم التصدير');}
+
+/* ===== نوافذ ===== */
+function openOverlay(id){document.getElementById(id).classList.add('visible');}
+function closeOverlay(id){document.getElementById(id).classList.remove('visible');}
+document.querySelectorAll('.overlay').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('visible');});});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.visible').forEach(ov=>ov.classList.remove('visible'));});
+
+/* ===== إشعارات ===== */
+let snackTimer;
+function showSnack(msg,isErr=false){const el=document.getElementById('snack');const icon=document.getElementById('snackIcon');document.getElementById('snackText').textContent=msg;el.classList.toggle('err',isErr);icon.className=isErr?'fas fa-exclamation-triangle':'fas fa-check-circle';icon.style.color=isErr?'var(--danger)':'var(--accent)';el.classList.add('up');clearTimeout(snackTimer);snackTimer=setTimeout(()=>el.classList.remove('up'),2800);}
+
+function updateStatsLocal(){
+    document.getElementById('statFilled').textContent=currentUser&&currentUser.type==='worker'?workerTotalFilled:currentTableFilled;
+    document.getElementById('statTotal').textContent=currentUser&&currentUser.type==='worker'?workerTotalFilled:totalFilled;
+}
+
+/* ===== لوحة إدارة العمال ===== */
+function openSuperPanel(){switchSuperTab('list',document.querySelector('.super-tab'));openOverlay('superOverlay');loadAndRenderWorkers();}
+function closeSuperPanel(){closeOverlay('superOverlay');}
+
+function switchSuperTab(tab,btn){
+    document.querySelectorAll('.super-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.super-tab-content').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    if(tab==='list'){document.getElementById('tabList').classList.add('active');document.getElementById('tabAdd').classList.remove('active');loadAndRenderWorkers();}
+    else{document.getElementById('tabAdd').classList.add('active');document.getElementById('tabList').classList.remove('active');renderAddWorkerForm();}
+}
+
+async function loadAndRenderWorkers(){try{const s=await db.ref('supervisor/workers').once('value');workersCache=s.val()||{};renderWorkersList();}catch(e){renderWorkersList();}}
+
+function renderWorkersList(){
+    const el=document.getElementById('tabList');el.innerHTML='';
+    const codes=Object.keys(workersCache);
+    if(!codes.length){el.innerHTML='<div class="no-workers"><i class="fas fa-user-plus"></i>لا يوجد عمال مسجلين بعد<br>انتقل لتبويب "إضافة عامل جديد"</div>';return;}
+    codes.forEach(code=>{const w=workersCache[code];const tables=Object.keys(w.tables||{});const card=document.createElement('div');card.className='worker-card';
+    let detailsHtml='';tables.sort((a,b)=>Number(a)-Number(b)).forEach(tn=>{const cols=(w.tables[tn].columns||[]);const colLabels=cols.map(ck=>{const ci=COLS.find(c=>c.key===ck);return ci?ci.label:ck;});detailsHtml+='<div class="perm-row"><span class="perm-tbl">جدول '+tn+'</span><div class="perm-cols">'+colLabels.map(l=>'<span class="perm-tag">'+l+'</span>').join('')+'</div></div>';});
+    card.innerHTML='<div class="worker-card-head"><div class="worker-code-area"><span class="code-badge">'+code+'</span><span class="worker-tables-count">'+tables.length+' جدول</span></div><div class="worker-card-actions"><button class="wk-btn toggle" data-code="'+code+'" title="تفاصيل"><i class="fas fa-chevron-down"></i></button><button class="wk-btn del" data-code="'+code+'" title="حذف"><i class="fas fa-trash"></i></button></div></div><div class="worker-details" id="wd_'+code+'">'+detailsHtml+'</div>';
+    el.appendChild(card);});
+    // أحداث
+    el.querySelectorAll('.wk-btn.toggle').forEach(btn=>{btn.addEventListener('click',e=>{e.stopPropagation();const code=btn.getAttribute('data-code');const det=document.getElementById('wd_'+code);det.classList.toggle('visible');btn.classList.toggle('open');});});
+    el.querySelectorAll('.wk-btn.del').forEach(btn=>{btn.addEventListener('click',e=>{e.stopPropagation();handleDeleteWorker(btn);});});
+}
+
+function handleDeleteWorker(btn){
+    const code=btn.getAttribute('data-code');
+    if(deleteConfirming===code){clearTimeout(deleteTimer);deleteConfirming=null;deleteWorkerFromFirebase(code);return;}
+    if(deleteTimer)clearTimeout(deleteTimer);
+    deleteConfirming=code;btn.classList.add('confirming');btn.innerHTML='<i class="fas fa-check"></i>';
+    deleteTimer=setTimeout(()=>{deleteConfirming=null;btn.classList.remove('confirming');btn.innerHTML='<i class="fas fa-trash"></i>';},3000);
+}
+
+async function deleteWorkerFromFirebase(code){
+    try{await db.ref('supervisor/workers/'+code).remove();delete workersCache[code];renderWorkersList();showSnack('تم حذف العامل '+code);}
+    catch(e){showSnack('فشل في الحذف',true);}
+    deleteConfirming=null;
+}
+
+function renderAddWorkerForm(){
+    newWorkerSel={};
+    const el=document.getElementById('tabAdd');
+    let html='<div class="form-group"><label class="form-label">كود العامل (أحرف وأرقام)</label><input type="text" class="form-input" id="newCode" placeholder="مثال: W1234" autocomplete="off" spellcheck="false"><div class="form-error" id="codeErr"></div></div>';
+    html+='<div class="form-group"><label class="form-label">اختر الجداول ثم حدد الأعمدة لكل جدول</label><div class="tbl-select-grid" id="tblSelGrid">';
+    for(let n=1;n<=TABLES_COUNT;n++)html+='<button class="tbl-sel-btn" data-t="'+n+'">'+n+'</button>';
+    html+='</div></div><div id="colSelArea"></div>';
+    html+='<button class="add-wkr-btn" id="addWkrBtn" onclick="addNewWorker()">إضافة العامل</button>';
+    el.innerHTML=html;
+    // أحداث أزرار الجداول
+    document.querySelectorAll('.tbl-sel-btn').forEach(btn=>{btn.addEventListener('click',()=>{const t=parseInt(btn.getAttribute('data-t'));btn.classList.toggle('on');if(btn.classList.contains('on')){newWorkerSel[t]=[];renderColSelectors();}else{delete newWorkerSel[t];renderColSelectors();}});});
+}
+
+function renderColSelectors(){
+    const area=document.getElementById('colSelArea');if(!area)return;area.innerHTML='';
+    const sorted=Object.keys(newWorkerSel).map(Number).sort((a,b)=>a-b);
+    sorted.forEach(tn=>{const box=document.createElement('div');box.className='col-select-box';
+    let colsHtml='<div class="col-select-title">أعمدة الجدول '+tn+'</div><div class="col-sel-grid">';
+    EDITABLE_COLS.forEach(ck=>{const ci=COLS.find(c=>c.key===ck);const isOn=newWorkerSel[tn].includes(ck);colsHtml+='<button class="col-sel-btn'+(isOn?' on':'')+'" data-t="'+tn+'" data-c="'+ck+'">'+ci.label+'</button>';});
+    colsHtml+='</div>';box.innerHTML=colsHtml;area.appendChild(box);});
+    document.querySelectorAll('.col-sel-btn').forEach(btn=>{btn.addEventListener('click',()=>{const t=parseInt(btn.getAttribute('data-t'));const c=btn.getAttribute('data-c');btn.classList.toggle('on');if(btn.classList.contains('on')){if(!newWorkerSel[t])newWorkerSel[t]=[];newWorkerSel[t].push(c);}else{newWorkerSel[t]=newWorkerSel[t].filter(x=>x!==c);if(newWorkerSel[t].length===0)delete newWorkerSel[t];}});});
+}
+
+async function addNewWorker(){
+    const codeInp=document.getElementById('newCode');const errEl=document.getElementById('codeErr');
+    const code=codeInp.value.trim();errEl.classList.remove('show');errEl.textContent='';
+    if(!code){errEl.textContent='أدخل كود العامل';errEl.classList.add('show');return;}
+    if(code===SUPER_CODE){errEl.textContent='لا يمكن استخدام كود المشرف';errEl.classList.add('show');return;}
+    if(!/^[a-zA-Z0-9\u0600-\u06FF]+$/.test(code)){errEl.textContent='الكود يجب أن يحتوي على أحرف وأرقام فقط';errEl.classList.add('show');return;}
+    const tables=Object.keys(newWorkerSel);
+    if(!tables.length){showSnack('اختر جدولاً واحداً على الأقل',true);return;}
+    let hasEmpty=false;tables.forEach(t=>{if(!newWorkerSel[t]||!newWorkerSel[t].length)hasEmpty=true;});
+    if(hasEmpty){showSnack('حدد أعمدة لكل جدول مختار',true);return;}
+    const btn=document.getElementById('addWkrBtn');btn.disabled=true;btn.textContent='جاري الإضافة...';
+    const permData={};tables.forEach(t=>{permData[t]={columns:newWorkerSel[t]};});
+    try{
+        // التحقق من عدم وجود الكود
+        const snap=await db.ref('supervisor/workers/'+code).once('value');
+        if(snap.val()){errEl.textContent='هذا الكود مستخدم مسبقاً';errEl.classList.add('show');btn.disabled=false;btn.textContent='إضافة العامل';return;}
+        await db.ref('supervisor/workers/'+code).set({tables:permData});
+        workersCache[code]={tables:permData};renderWorkersList();switchSuperTab('list',document.querySelectorAll('.super-tab')[0]);
+        showSnack('تم إضافة العامل '+code);
+    }catch(e){showSnack('فشل في الإضافة',true);}
+    btn.disabled=false;btn.textContent='إضافة العامل';
+}
+
+/* ===== حفظ عند الإغلاق ===== */
+window.addEventListener('beforeunload',()=>{
+    syncCellsToCache();
+    // احفظ دائماً في localStorage (ضمان بقاء التغييرات حتى لو انقطع الإنترنت)
+    if(cache[activeTable]){lsSaveData(activeTable,cache[activeTable]);}
+    // حاول الحفظ في Firebase أيضاً (إذا متصل)
+    if(cache[activeTable]&&isConnected){
+        const cols=getEditableColumns(activeTable);
+        const upd={};
+        for(let r=1;r<=ROWS_COUNT;r++){if(!cache[activeTable][r])continue;cols.forEach(c=>{upd[r+'/'+c]=cache[activeTable][r][c];});}
+        db.ref('tables/'+activeTable).update(upd);
+    }else if(cache[activeTable]){
+        // أضف الجدول لقائمة المعلقة
+        lsAddPending(activeTable);
+    }
+});
+
+/* ===== Enter للدخول ===== */
+document.getElementById('loginInput').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+setTimeout(()=>document.getElementById('loginInput').focus(),300);
+</script>
+</body>
+</html>
